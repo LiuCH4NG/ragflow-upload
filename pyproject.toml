@@ -1,0 +1,13 @@
+[project]
+name = "ragflow-upload"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "loguru>=0.7.3",
+    "pymysql==1.1.1",
+    "pytz==2024.1",
+    "ragflow-sdk>=0.20.4",
+    "requests==2.32.4",
+]
