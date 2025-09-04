@@ -18,6 +18,10 @@
 - **自动知识库管理**: 如果指定的知识库不存在，会自动创建新的知识库
 - **解析控制**: 可选择是否在上传后自动启动文档解析
 - **实时进度**: 显示上传进度、耗时统计和详细的错误信息
+- **🆕 配置文件支持**: 通过.env文件保存配置，避免重复输入
+- **🆕 交互式输入**: 友好的命令行交互界面，简化操作流程
+- **🆕 多种运行模式**: 支持交互式、命令行、混合模式等多种使用方式
+- **🆕 配置优先级**: 灵活的配置管理，命令行参数优先于.env文件
 
 ## 📦 安装
 
@@ -54,8 +58,41 @@ pip install ragflow-sdk loguru
 
 ## 📖 使用方法
 
-### 基本用法
+## 📖 使用方法
 
+### 🔧 首次配置
+
+在使用之前，建议先创建配置文件：
+
+```bash
+# 复制配置模板
+cp .env.example .env
+
+# 编辑配置文件，填入你的信息
+# RAGFLOW_API_KEY=your-api-key-here
+# RAGFLOW_BASE_URL=http://localhost:9380
+# BATCH_SIZE=5
+# AUTO_PARSE=true
+# SKIP_EXISTING=false
+```
+
+### 🚀 快速开始（推荐）
+
+#### 1. 交互式模式 - 最简单
+```bash
+python ragflow_uploader.py
+```
+脚本会引导你输入必要的信息，无需记住复杂的命令行参数。
+
+#### 2. 使用配置文件 - 最便捷
+```bash
+python ragflow_uploader.py \
+  --dataset_name "my_knowledge_base" \
+  --directory "/path/to/documents"
+```
+如果已在.env文件中配置了API密钥和服务器地址。
+
+#### 3. 完整命令行模式 - 最灵活
 ```bash
 python ragflow_uploader.py \
   --api_key "your-api-key" \
@@ -64,7 +101,7 @@ python ragflow_uploader.py \
   --directory "/path/to/documents"
 ```
 
-### 高级用法
+### 🔧 高级用法
 
 ```bash
 # 自定义批次大小，不自动解析
@@ -84,20 +121,57 @@ python ragflow_uploader.py \
   --directory "/path/to/documents" \
   --skip_existing \
   --log_file "/path/to/custom.log"
+
+# 强制交互模式（忽略任何配置文件）
+python ragflow_uploader.py -i
 ```
 
-## ⚙️ 参数说明
+## ⚙️ 配置说明
+
+### 配置优先级
+
+脚本的配置优先级如下（从高到低）：
+1. **命令行参数** - 具有最高优先级，会覆盖其他配置
+2. **.env文件** - 保存默认配置，避免每次输入
+3. **交互式输入** - 当缺少必要配置时的提示输入
+
+### 参数说明
 
 | 参数 | 类型 | 必需 | 说明 |
 |------|------|------|------|
-| `--api_key` | 字符串 | ✅ | RAGFlow API 密钥 |
-| `--base_url` | 字符串 | ✅ | RAGFlow 服务器地址 (例如: http://localhost:9380) |
-| `--dataset_name` | 字符串 | ✅ | 知识库名称（如果不存在将自动创建） |
-| `--directory` | 字符串 | ✅ | 要上传文件的目录路径 |
+| `--api_key` | 字符串 | ❌ | RAGFlow API 密钥（命令行优先） |
+| `--base_url` | 字符串 | ❌ | RAGFlow 服务器地址（命令行优先） |
+| `--dataset_name` | 字符串 | ❌ | 知识库名称（命令行或交互输入） |
+| `--directory` | 字符串 | ❌ | 要上传文件的目录路径（命令行或交互输入） |
 | `--batch_size` | 数字 | ❌ | 每批上传的文件数量（默认：5） |
 | `--no_parse` | 标志 | ❌ | 上传后不自动启动文档解析 |
 | `--skip_existing` | 标志 | ❌ | 跳过已存在的文件 |
 | `--log_file` | 字符串 | ❌ | 指定日志文件路径（默认自动生成） |
+| `--interactive` | 标志 | ❌ | 强制使用交互式输入模式 (`-i`)|
+
+### .env 配置文件
+
+在项目根目录创建`.env`文件：
+
+```ini
+# RAGFlow API密钥
+RAGFLOW_API_KEY=your-api-key-here
+
+# RAGFlow服务器地址
+RAGFLOW_BASE_URL=http://localhost:9380
+
+# 每批上传的文件数量（可选，默认：5）
+BATCH_SIZE=5
+
+# 是否在上传后自动启动文档解析（可选，默认：true）
+AUTO_PARSE=true
+
+# 是否跳过已存在的文件（可选，默认：false）
+SKIP_EXISTING=false
+
+# 日志文件路径（可选，如果不指定将自动生成）
+LOG_FILE=
+```
 
 ## 📋 支持的文件格式
 
@@ -193,7 +267,7 @@ ragflow-upload/
 ├── ragflow_uploader.py      # 主上传脚本
 ├── requirements.txt         # Python 依赖
 ├── pyproject.toml          # 项目配置 (UV)
-├── CLAUDE.md               # 项目文档
+├── .env.example           # 环境变量模板
 ├── README.md               # 本文件
 ├── LICENSE                 # 许可证
 ├── .gitignore              # Git 忽略规则
@@ -202,13 +276,14 @@ ragflow-upload/
 
 ## 🔄 工作流程
 
-1. **初始化**: 连接到 RAGFlow 服务器，配置日志系统
-2. **知识库检查**: 获取指定知识库，不存在则自动创建
-3. **文件扫描**: 扫描指定目录，过滤支持的文件格式
-4. **去重检查**: 比对现有文档，标记需要跳过的文件
-5. **批量上传**: 按设定批次大小上传文件
-6. **解析启动**: 可选择是否自动启动文档解析
-7. **总结报告**: 生成详细的操作总结和统计信息
+1. **配置加载**: 按优先级加载命令行参数、.env文件和交互式输入
+2. **初始化**: 连接到 RAGFlow 服务器，配置日志系统
+3. **知识库检查**: 获取指定知识库，不存在则自动创建
+4. **文件扫描**: 扫描指定目录，过滤支持的文件格式
+5. **去重检查**: 比对现有文档，标记需要跳过的文件
+6. **批量上传**: 按设定批次大小上传文件
+7. **解析启动**: 可选择是否自动启动文档解析
+8. **总结报告**: 生成详细的操作总结和统计信息
 
 ## 📝 开发说明
 
@@ -216,6 +291,7 @@ ragflow-upload/
 
 - **Python 3.11+**: 主要编程语言
 - **ragflow-sdk**: 与 RAGFlow 服务器交互的 SDK
+- **python-dotenv**: 环境变量管理
 - **loguru**: 高性能日志库
 - **argparse**: 命令行参数解析
 - **pathlib**: 文件路径处理

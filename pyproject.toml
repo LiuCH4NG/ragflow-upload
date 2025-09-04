@@ -10,4 +10,5 @@ dependencies = [
     "pytz==2024.1",
     "ragflow-sdk>=0.20.4",
     "requests==2.32.4",
+    "python-dotenv>=1.0.0",
 ]

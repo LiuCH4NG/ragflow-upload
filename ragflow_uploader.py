@@ -18,10 +18,117 @@ pip install ragflow-sdk loguru
 
 import argparse
 import sys
+import os
 from pathlib import Path
 from datetime import datetime
 from ragflow_sdk import RAGFlow
 from loguru import logger
+from dotenv import load_dotenv
+
+
+def load_env_config():
+    """从.env文件加载配置"""
+    # 加载.env文件
+    load_dotenv()
+    
+    config = {
+        'api_key': os.getenv('RAGFLOW_API_KEY'),
+        'base_url': os.getenv('RAGFLOW_BASE_URL'),
+        'batch_size': 5,
+        'auto_parse': True,
+        'skip_existing': False,
+        'log_file': os.getenv('LOG_FILE')
+    }
+    
+    # 处理数值类型
+    batch_size = os.getenv('BATCH_SIZE')
+    if batch_size:
+        try:
+            config['batch_size'] = int(batch_size)
+        except ValueError:
+            logger.warning(f"BATCH_SIZE的值无效: {batch_size}，使用默认值5")
+    
+    # 处理布尔类型
+    auto_parse = os.getenv('AUTO_PARSE')
+    if auto_parse:
+        config['auto_parse'] = auto_parse.lower() in ('true', '1', 'yes', 'on')
+    
+    skip_existing = os.getenv('SKIP_EXISTING')
+    if skip_existing:
+        config['skip_existing'] = skip_existing.lower() in ('true', '1', 'yes', 'on')
+    
+    return config
+
+
+def get_input_config():
+    """通过终端输入获取配置"""
+    print("欢迎使用RAGFlow文件上传工具！")
+    print("=" * 50)
+    
+    config = load_env_config()
+    
+    # 获取知识库名称
+    dataset_name = input("请输入知识库名称: ").strip()
+    while not dataset_name:
+        print("知识库名称不能为空！")
+        dataset_name = input("请输入知识库名称: ").strip()
+    
+    # 获取文件目录路径
+    directory = input("请输入要上传文件的目录路径: ").strip()
+    while not directory:
+        print("目录路径不能为空！")
+        directory = input("请输入要上传文件的目录路径: ").strip()
+    
+    # 验证目录是否存在
+    directory_path = Path(directory)
+    while not directory_path.exists() or not directory_path.is_dir():
+        print(f"目录不存在或不是目录: {directory}")
+        directory = input("请重新输入要上传文件的目录路径: ").strip()
+        directory_path = Path(directory)
+    
+    # 如果.env文件中缺少必要配置，提示输入
+    if not config['api_key']:
+        config['api_key'] = input("请输入RAGFlow API密钥: ").strip()
+        while not config['api_key']:
+            print("API密钥不能为空！")
+            config['api_key'] = input("请输入RAGFlow API密钥: ").strip()
+    
+    if not config['base_url']:
+        config['base_url'] = input("请输入RAGFlow服务器地址 (例如: http://localhost:9380): ").strip()
+        while not config['base_url']:
+            print("服务器地址不能为空！")
+            config['base_url'] = input("请输入RAGFlow服务器地址 (例如: http://localhost:9380): ").strip()
+    
+    # 显示配置摘要
+    print("\n配置摘要：")
+    print(f"  知识库名称: {dataset_name}")
+    print(f"  文件目录: {directory}")
+    print(f"  API密钥: {'*' * (len(config['api_key']) - 4) + config['api_key'][-4:]}")
+    print(f"  服务器地址: {config['base_url']}")
+    print(f"  批次大小: {config['batch_size']}")
+    print(f"  自动解析: {'是' if config['auto_parse'] else '否'}")
+    print(f"  跳过重复文件: {'是' if config['skip_existing'] else '否'}")
+    if config['log_file']:
+        print(f"  日志文件: {config['log_file']}")
+    else:
+        print("  日志文件: 自动生成")
+    
+    # 确认配置
+    confirm = input("\n确认配置并开始上传？(y/n): ").strip().lower()
+    if confirm != 'y':
+        print("已取消上传")
+        sys.exit(0)
+    
+    return {
+        'dataset_name': dataset_name,
+        'directory': directory,
+        'api_key': config['api_key'],
+        'base_url': config['base_url'],
+        'batch_size': config['batch_size'],
+        'auto_parse': config['auto_parse'],
+        'skip_existing': config['skip_existing'],
+        'log_file': config['log_file']
+    }
 
 
 class RAGFlowUploader:
@@ -440,84 +547,149 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 使用示例：
+  # 命令行模式
   python ragflow_uploader.py --api_key "your-api-key" --base_url "http://localhost:9380" --dataset_name "my_knowledge_base" --directory "/path/to/documents"
   
-  python ragflow_uploader.py --api_key "your-api-key" --base_url "http://localhost:9380" --dataset_name "my_knowledge_base" --directory "/path/to/documents" --batch_size 3 --no_parse
+  # 交互模式（推荐）
+  python ragflow_uploader.py
+  
+  # 使用.env配置文件
+  python ragflow_uploader.py --dataset_name "my_knowledge_base" --directory "/path/to/documents"
         """
     )
     
+    # 可选参数（可以通过.env文件配置）
     parser.add_argument(
         '--api_key',
-        required=True,
-        help='RAGFlow API密钥'
+        help='RAGFlow API密钥（优先级高于.env文件）'
     )
     
     parser.add_argument(
         '--base_url',
-        required=True,
-        help='RAGFlow服务器地址 (例如: http://localhost:9380)'
+        help='RAGFlow服务器地址（优先级高于.env文件）'
     )
     
+    # 必需参数（必须通过命令行或交互式输入）
     parser.add_argument(
         '--dataset_name',
-        required=True,
         help='知识库名称（如果不存在将自动创建）'
     )
     
     parser.add_argument(
         '--directory',
-        required=True,
         help='要上传文件的目录路径'
     )
     
     parser.add_argument(
         '--batch_size',
         type=int,
-        default=5,
-        help='每批上传的文件数量（默认：5）'
+        help='每批上传的文件数量（优先级高于.env文件）'
     )
     
     parser.add_argument(
         '--no_parse',
         action='store_true',
-        help='上传后不自动启动文档解析'
+        help='上传后不自动启动文档解析（优先级高于.env文件）'
     )
 
     parser.add_argument(
         "--skip_existing",
         action='store_true',
-        
+        help='跳过已存在的文件（优先级高于.env文件）'
     )
     
     parser.add_argument(
         '--log_file',
-        help='指定日志文件路径（如果不指定，将自动生成时间戳命名的日志文件）'
+        help='指定日志文件路径（优先级高于.env文件）'
+    )
+    
+    parser.add_argument(
+        '--interactive',
+        '-i',
+        action='store_true',
+        help='使用交互式输入模式'
     )
     
     args = parser.parse_args()
+    
+    # 判断是否使用交互式输入模式
+    # 如果没有提供dataset_name和directory参数，则使用交互模式
+    use_interactive = args.interactive or (not args.dataset_name and not args.directory)
+    
+    if use_interactive:
+        # 使用交互式输入
+        config = get_input_config()
+    else:
+        # 使用命令行参数，优先使用命令行参数，否则使用.env配置
+        env_config = load_env_config()
+        
+        # 构建配置字典
+        config = {
+            'dataset_name': args.dataset_name,
+            'directory': args.directory,
+            'api_key': args.api_key or env_config['api_key'],
+            'base_url': args.base_url or env_config['base_url'],
+            'batch_size': args.batch_size or env_config['batch_size'],
+            'auto_parse': not args.no_parse if args.no_parse else env_config['auto_parse'],
+            'skip_existing': args.skip_existing or env_config['skip_existing'],
+            'log_file': args.log_file or env_config['log_file']
+        }
+        
+        # 验证必需参数
+        if not config['dataset_name']:
+            print("错误：必须提供--dataset_name参数或在交互模式下输入")
+            sys.exit(1)
+        
+        if not config['directory']:
+            print("错误：必须提供--directory参数或在交互模式下输入")
+            sys.exit(1)
+        
+        if not config['api_key']:
+            print("错误：必须提供--api_key参数或在.env文件中配置RAGFLOW_API_KEY")
+            sys.exit(1)
+        
+        if not config['base_url']:
+            print("错误：必须提供--base_url参数或在.env文件中配置RAGFLOW_BASE_URL")
+            sys.exit(1)
+        
+        # 验证目录是否存在
+        directory_path = Path(config['directory'])
+        if not directory_path.exists() or not directory_path.is_dir():
+            print(f"错误：目录不存在或不是目录: {config['directory']}")
+            sys.exit(1)
+    
+    # 将配置转换为变量，便于后续使用
+    api_key = config['api_key']
+    base_url = config['base_url']
+    dataset_name = config['dataset_name']
+    directory = config['directory']
+    batch_size = config['batch_size']
+    auto_parse = config['auto_parse']
+    skip_existing = config['skip_existing']
+    log_file = config['log_file']
     
     # 记录程序开始时间
     program_start_time = datetime.now()
     
     try:
         # 创建上传器实例
-        uploader = RAGFlowUploader(args.api_key, args.base_url, args.log_file)
+        uploader = RAGFlowUploader(api_key, base_url, log_file)
         
         # 记录程序参数
         logger.info("程序启动参数：")
-        logger.info(f"  API密钥：{'*' * (len(args.api_key) - 8) + args.api_key[-4:] if len(args.api_key) > 8 else '****'}")
-        logger.info(f"  服务器地址：{args.base_url}")
-        logger.info(f"  知识库名称：{args.dataset_name}")
-        logger.info(f"  目录路径：{args.directory}")
-        logger.info(f"  批次大小：{args.batch_size}")
-        logger.info(f"  自动解析：{'否' if args.no_parse else '是'}")
-        logger.info(f"  日志文件：{args.log_file or '自动生成'}")
+        logger.info(f"  API密钥：{'*' * (len(api_key) - 8) + api_key[-4:] if len(api_key) > 8 else '****'}")
+        logger.info(f"  服务器地址：{base_url}")
+        logger.info(f"  知识库名称：{dataset_name}")
+        logger.info(f"  目录路径：{directory}")
+        logger.info(f"  批次大小：{batch_size}")
+        logger.info(f"  自动解析：{'否' if not auto_parse else '是'}")
+        logger.info(f"  日志文件：{log_file or '自动生成'}")
         
         # 获取或创建知识库
-        dataset = uploader.get_or_create_dataset(args.dataset_name)
+        dataset = uploader.get_or_create_dataset(dataset_name)
         
         # 获取目录下的所有文件
-        file_paths = uploader.get_files_from_directory(args.directory)
+        file_paths = uploader.get_files_from_directory(directory)
         
         if not file_paths:
             logger.warning("在指定目录中没有找到支持的文件")
@@ -525,10 +697,10 @@ def main():
             return
         
         # 上传文件
-        uploader.upload_files(dataset, file_paths, args.batch_size, args.skip_existing)
+        uploader.upload_files(dataset, file_paths, batch_size, skip_existing)
         
         # 启动解析（如果需要）
-        if not args.no_parse:
+        if auto_parse:
             uploader.start_parsing(dataset)
         else:
             logger.info("用户选择跳过自动解析")
