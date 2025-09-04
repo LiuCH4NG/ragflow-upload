@@ -41,7 +41,6 @@ class RAGFlowUploader:
         
         self.rag = RAGFlow(api_key=api_key, base_url=base_url)
         logger.info(f"已连接到RAGFlow服务器：{base_url}")
-        print(f"已连接到RAGFlow服务器：{base_url}")
     
     def _setup_logger(self, log_file=None):
         """
@@ -97,18 +96,15 @@ class RAGFlowUploader:
             datasets = self.rag.list_datasets(name=dataset_name)
             if datasets:
                 logger.success(f"找到现有知识库：{dataset_name}")
-                print(f"找到现有知识库：{dataset_name}")
                 return datasets[0]
             else:
                 logger.info(f"未找到名为 {dataset_name} 的知识库，将创建新的知识库")
         except Exception as e:
             logger.error(f"查找知识库时出错：{e}")
-            print(f"查找知识库时出错：{e}")
         
         # 如果没有找到，创建新的知识库
         try:
             logger.info(f"开始创建新知识库：{dataset_name}")
-            print(f"创建新知识库：{dataset_name}")
             dataset = self.rag.create_dataset(
                 name=dataset_name,
                 description=f"通过脚本自动创建的知识库：{dataset_name}",
@@ -116,11 +112,9 @@ class RAGFlowUploader:
                 permission="me"
             )
             logger.success(f"成功创建知识库：{dataset_name}，ID：{dataset.id if hasattr(dataset, 'id') else 'Unknown'}")
-            print(f"成功创建知识库：{dataset_name}")
             return dataset
         except Exception as e:
             logger.error(f"创建知识库失败：{e}")
-            print(f"创建知识库失败：{e}")
             raise
     
     def get_existing_documents(self, dataset):
@@ -250,7 +244,6 @@ class RAGFlowUploader:
                     logger.debug(f"跳过不支持的文件：{file_path}")
         
         logger.info(f"目录扫描完成：扫描了 {total_files_scanned} 个文件，找到 {len(files)} 个支持的文件")
-        print(f"在目录 {directory} 中找到 {len(files)} 个支持的文件")
         
         # 记录文件列表（如果文件数量不多的话）
         if len(files) <= 50:
@@ -278,7 +271,6 @@ class RAGFlowUploader:
         upload_start_time = datetime.now()
         
         logger.info(f"开始上传任务：总共 {total_files} 个文件，批次大小：{batch_size}，跳过重复：{skip_existing}")
-        print(f"开始上传 {total_files} 个文件到知识库...")
         
         # 如果需要跳过已存在的文件，先获取现有文档列表
         existing_docs = {}
@@ -286,7 +278,6 @@ class RAGFlowUploader:
             existing_docs = self.get_existing_documents(dataset)
             if existing_docs:
                 logger.info(f"获取到 {len(existing_docs)} 个现有文档，将跳过重复文件")
-                print(f"知识库中已有 {len(existing_docs)} 个文档，将跳过重复文件")
         
         # 过滤需要上传的文件
         files_to_upload = []
@@ -295,17 +286,14 @@ class RAGFlowUploader:
             if skip_existing and file_name in existing_docs:
                 skipped_files.append(str(file_path))
                 logger.info(f"跳过已存在的文件：{file_name}")
-                print(f"跳过已存在的文件：{file_name}")
             else:
                 files_to_upload.append(file_path)
         
         if skipped_files:
             logger.info(f"跳过 {len(skipped_files)} 个已存在的文件，实际需要上传 {len(files_to_upload)} 个文件")
-            print(f"跳过 {len(skipped_files)} 个重复文件，实际需要上传 {len(files_to_upload)} 个文件")
         
         if not files_to_upload:
             logger.info("没有需要上传的新文件")
-            print("没有需要上传的新文件")
             return
         
         # 分批上传文件
@@ -330,7 +318,6 @@ class RAGFlowUploader:
                     
                     file_size_mb = len(file_content) / (1024 * 1024)
                     logger.debug(f"文件准备就绪：{file_path.name} ({file_size_mb:.2f} MB)")
-                    print(f"准备上传文件：{file_path.name} ({len(file_content)} bytes)")
                     
                 except Exception as e:
                     logger.error(f"读取文件失败：{file_path} - {e}")
@@ -495,6 +482,12 @@ def main():
         action='store_true',
         help='上传后不自动启动文档解析'
     )
+
+    parser.add_argument(
+        "--skip_existing",
+        action='store_true',
+        
+    )
     
     parser.add_argument(
         '--log_file',
@@ -532,7 +525,7 @@ def main():
             return
         
         # 上传文件
-        uploader.upload_files(dataset, file_paths, args.batch_size)
+        uploader.upload_files(dataset, file_paths, args.batch_size, args.skip_existing)
         
         # 启动解析（如果需要）
         if not args.no_parse:
