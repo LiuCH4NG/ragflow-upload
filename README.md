@@ -58,8 +58,6 @@ pip install ragflow-sdk loguru
 
 ## 📖 使用方法
 
-## 📖 使用方法
-
 ### 🔧 首次配置
 
 在使用之前，建议先创建配置文件：
