@@ -196,6 +196,14 @@ LOG_FILE=
 - `.csv` - CSV 文件
 - `.rtf` - RTF 文件
 
+## 打包可执行文件
+
+使用[pyfuze](https://github.com/TanixLu/pyfuze)
+
+```bash
+uvx pyfuze ragflow_uploader.py --mode bundle --output-name RAG_upload_tool  --pyproject pyproject.toml 
+```
+
 ## 📊 日志系统
 
 ### 自动日志生成
