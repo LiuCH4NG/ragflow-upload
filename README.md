@@ -201,7 +201,7 @@ LOG_FILE=
 使用[pyfuze](https://github.com/TanixLu/pyfuze)
 
 ```bash
-uvx pyfuze ragflow_uploader.py --mode bundle --output-name RAG_upload_tool  --pyproject pyproject.toml 
+uvx pyfuze ragflow_uploader.py --mode bundle --output-name RAG_upload_tool  --pyproject pyproject.toml --include .env.example
 ```
 
 ## 📊 日志系统
